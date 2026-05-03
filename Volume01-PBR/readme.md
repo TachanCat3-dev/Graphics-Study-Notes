@@ -1,7 +1,6 @@
 # PBR基于物理的渲染学习知识总结
 
 
-
 ### Albedo 的最准确翻译是什么？
 
 反照率（物理学/天文学标准翻译）： 这是字面和学术意义上最准确的翻译（源自拉丁语 albus，意为白色）。它指的是物体反射太阳辐射的比例。但这个词在游戏开发中显得过于学术和生僻，美术人员通常不太习惯这个称呼。
@@ -26,8 +25,8 @@ A. 亚像素级别的材质混合（微观混合）
 生锈部分 = 纯非金属（Metallic = 0）
 未生锈的金属部分 = 纯金属（Metallic = 1）
 
-如果这两种材质在微观上交织在一起，由于分辨率的限制，引擎在一个像素内无法把它们分开渲染。此时，如果提供一个 Metallic = 0.5 的值，引擎其实是在表
-达：“这个像素所覆盖的微观表面中，有 50% 是金属，50% 是非金属。”
+如果这两种材质在微观上交织在一起，由于分辨率的限制，引擎在一个像素内无法把它们分开渲染。
+此时，如果提供一个 Metallic = 0.5 的值，引擎其实是在表达：“这个像素所覆盖的微观表面中，有 50% 是金属，50% 是非金属。”
 这就实现了诸如“表面划痕”、“积灰的金属”、“磨损的烤漆”等复杂材质的平滑过渡。
 
 
@@ -69,3 +68,16 @@ F0 = lerp(float3(0.04, 0.04, 0.04), BaseColor, Metallic)
 
 反射带有色彩： 因为金属对RGB三原色的反射率各不相同，它的 $F_0$ 必须使用三个独立的值来分别记录红、绿、蓝通道的反射率。因此，金属的 $F_0$ 是一个 float3。
 
+### BXDF系列有哪些内容
+双向反射分布函数 (Bidirectional Reflectance Distribution Function, BRDF)
+双向散射分布函数 (Bidirectional scattering distribution function, BSDF) 
+双向透射分布 (Bidirectional Transmittance Distribution Function, BTDF)
+双向散射表面反射分布函数 (Bidirectional Scattering-Surface Reflectance Distribution Function, BSSRDF)
+
+关于这些函数 运用最广泛的应该是BRDF(GAMES101以及GAMES202中经常提到)以及BSDF(在blender中经常见到)
+
+### 渲染方程
+
+由 Kajiya 在 1986 年提出，是现代所有物理渲染算法的数学基础：
+
+$$L_o(p, \omega_o) = L_e(p, \omega_o) + \int_{\Omega^+} L_i(p, \omega_i) f_r(p, \omega_i, \omega_o) (n \cdot \omega_i) d\omega_i$$
