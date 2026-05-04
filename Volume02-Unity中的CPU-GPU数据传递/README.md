@@ -94,3 +94,5 @@ StructuredBuffer 接收大规模数据
 大量同材质物体各自状态不同 -> `MaterialPropertyBlock`
 
 传递海量计算数据 -> `ComputeBuffer`
+
+## 使用例
