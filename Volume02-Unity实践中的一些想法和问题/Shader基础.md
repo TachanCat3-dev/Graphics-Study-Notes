@@ -3,7 +3,7 @@
 
 # 纹理TEXTURE使用方法和API示例
 
-## Shader中贴图的声明和使用流程
+## Shader中贴图的基础声明和使用流程
 Unity默认的Shader模板的Properties中有BaseMap贴图声明
 
 形式如下:
@@ -40,7 +40,7 @@ Unity默认的Shader模板的Properties中有BaseMap贴图声明
 ## 法线贴图的使用方法
 声明
 
-    [NoScaleOffset]_NormalMap("Normal Map", 2D) = "bump" {}
+    [NoScaleOffset] _NormalMap("Normal Map", 2D) = "bump" {}
 
 正常进行贴图的准备
 
@@ -48,7 +48,7 @@ Unity默认的Shader模板的Properties中有BaseMap贴图声明
 
     SAMPLER(sampler_NormalMap);
 
-采样时略有不同 这里我们要专门为法线贴图使用Unity给我们准给好的工具:
+采样时略有不同 这里我们要专门为法线贴图使用Unity给我们准给好的法线解包工具:
 
     float3 normalTS = UnpackNormalScale(normalMap, _normalScale);
 
@@ -57,6 +57,23 @@ Unity默认的Shader模板的Properties中有BaseMap贴图声明
 简而言之 Unity在导入NormalMap的时候会使用 ***DXT5nm*** 协议进行压缩，Unpack顾名思义就是把它解压缩回RGB空间。
 
 注意到这个normalTS的后缀为 TS切线空间(Tangent Space)，我们需要用TBN矩阵将其转换到 WS世界空间(WorldSpace)。
+
+## 混合法线
+我们无法像之前那样用两个颜色相乘的方式混合法线 
+
+我们可以通过在归一化之前对他们进行平均的方式混合 注意：这种混合方式会导致法线变平
+
+```shaderlab
+void InitializeFragmentNormal(inout Interpolators i)
+{
+	float3 mainNormal = UnpackScaleNormal(tex2D(_NormalMap, i.uv.xy), _BumpScale);
+	float3 detailNormal = UnpackScaleNormal(tex2D(_DetailNormalMap, i.uv.zw), _DetailBumpScale);
+	i.normal = (mainNormal + detailNormal) * 0.5;
+	i.normal = i.normal.xzy;
+	i.normal = normalize(i.normal);
+}
+```
+
 
 
 
