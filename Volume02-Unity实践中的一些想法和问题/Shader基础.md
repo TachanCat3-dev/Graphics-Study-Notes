@@ -59,20 +59,76 @@ Unity默认的Shader模板的Properties中有BaseMap贴图声明
 注意到这个normalTS的后缀为 TS切线空间(Tangent Space)，我们需要用TBN矩阵将其转换到 WS世界空间(WorldSpace)。
 
 ## 混合法线
-我们无法像之前那样用两个颜色相乘的方式混合法线 
+我们无法像之前那样用两个颜色相乘的方式混合法线。
 
-我们可以通过在归一化之前对他们进行平均的方式混合 注意：这种混合方式会导致法线变平
+理想情况下，当其中一个为平面时，它完全不应该影响另一个。
 
+常用的方式是Whiteout 代码如下：
 ```shaderlab
-void InitializeFragmentNormal(inout Interpolators i)
-{
-	float3 mainNormal = UnpackScaleNormal(tex2D(_NormalMap, i.uv.xy), _BumpScale);
-	float3 detailNormal = UnpackScaleNormal(tex2D(_DetailNormalMap, i.uv.zw), _DetailBumpScale);
-	i.normal = (mainNormal + detailNormal) * 0.5;
-	i.normal = i.normal.xzy;
-	i.normal = normalize(i.normal);
-}
+// 正确的混合方式
+float3 mainNormal = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, i.uv.xy), _BumpScale);
+float3 detailNormal = UnpackNormalScale(SAMPLE_TEXTURE2D(_DetailNormalMap, sampler_DetailNormalMap, i.uv.zw), _DetailBumpScale);
+
+// 使用 Unity 内置函数进行混合
+i.normal = BlendNormal(mainNormal, detailNormal);
 ```
+
+# 阴影
+
+如果没有自己写的需求可以简单的挂上unity写好的`ShadowCasterPass.hlsl`
+```shaderlab
+// 这里是投射阴影的pass
+Pass
+        {
+            Name "ShadowCaster"
+            Tags
+            {
+                "LightMode" = "ShadowCaster"
+            }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma vertex ShadowPassVertex
+            #pragma fragment ShadowPassFragment
+
+
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            ENDHLSL
+
+        }
+```    
+同时要在HLSLPROGRAM中声明接收阴影
+```shaderlab
+    #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+    #pragma multi_compile _ _SHADOWS_SOFT
+```
+在顶点着色器中：计算顶点对应的阴影纹理坐标。
+```shaderlab
+    // 声明在 Varyings 结构体中
+    float4 shadowCoord : TEXCOORD1; 
+
+    // 在 Vertex 函数中计算
+    VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
+    output.shadowCoord = GetShadowCoord(vertexInput);
+```
+在片元着色器中：获取光源信息时传入阴影坐标，并将其应用到颜色上。
+```shaderlab
+    // 传入 shadowCoord 获取带有阴影衰减（shadowAttenuation）的主光信息
+    Light mainLight = GetMainLight(input.shadowCoord);
+      
+    // mainLight.shadowAttenuation 的值在 0（完全在阴影中）到 1（完全被照亮）之间
+    half3 diffuse = mainLight.color * (NoL * mainLight.shadowAttenuation);
+```
+
+
+
+
+## URP阴影实现流程
+简单来说，我们需要一个专门的ShadowCasterPass用于获得阴影的深度图，也就是投射阴影。随后在最初的Pass中接收这个阴影。
+
+
 
 
 
