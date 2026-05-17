@@ -74,6 +74,9 @@ i.normal = BlendNormal(mainNormal, detailNormal);
 ```
 
 # 阴影
+在 URP（通用渲染管线）中，带有 "LightMode" = "ShadowCaster" 的 Pass 的唯一职责是：把物体的深度信息写入当前光源的阴影贴图（Shadow Map）中。
+
+URP 的底层 C++ 渲染管线会自动遍历光源。对于每一个需要生成阴影贴图的光源，管线会自动调用场景中相关物体的 ShadowCaster Pass。
 
 如果没有自己写的需求可以简单的挂上unity写好的`ShadowCasterPass.hlsl`
 ```shaderlab
