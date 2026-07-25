@@ -18,7 +18,7 @@ Asset 在这个方法里，把自己的配置数据作为参数，new 出来一�
 
 # 渲染指令
 ## ScriptableRenderContext (context) 桥梁与大管家
-`context` 是 C# 脚本与 Unity 底层 C++ 图形引擎通信的唯一桥梁。
+`context` 是 C# 脚本与 Unity 底层 C++ 图形引擎通信的**唯一**桥梁。
 
 它主要负责宏观层面的调度：执行 CommandBuffer、画天空盒 (context.DrawSkybox)、画剔除后的网格 (context.DrawRenderers)。
 
@@ -34,6 +34,16 @@ context.Submit();
 
 例如设置渲染目标（Render Target）、清除屏幕（Clear）、设置全局材质参数（SetGlobalColor）、调用计算着色器（DispatchCompute）。
 
+为了在FrameDebugger中清晰地看见我们的Buffer，我们需要给Buffer一个名字：
+```csharp
+const string bufferName = "Render Camera"; // const string防GC，同时防止多处手动输入"Render Camera"手滑导致的错误。
+
+CommandBuffer buffer = new CommandBuffer 
+{
+    name = bufferName
+};
+```
+
 常用的执行方法是将执行和清空绑定在一起：
 ```csharp
 void ExecuteBuffer () 
@@ -42,3 +52,45 @@ void ExecuteBuffer ()
     buffer.Clear();
 }
 ```
+
+# 批处理
+SRPBatcher和GPUInstancing
+
+# RenderTarget
+有时候需要将阴影等渲染结果输出到其他的渲染目标上，此时需要更改我们的RenderTarget。
+
+RenderTarget（渲染目标）就是 GPU 当前这一趟绘制要写入的内存区域。
+默认情况下我们渲染到摄像机的帧缓冲（最终显示在屏幕上），但很多效果需要先把结果画到一张离屏纹理里，
+之后再采样使用——阴影贴图、后处理、反射等都是这个套路。
+
+## RenderTarget 常用类别
+
+- **CameraTarget（摄像机目标 / 屏幕）**：通过 `BuiltinRenderTextureType.CameraTarget` 引用，最终呈现给玩家的画面。
+- **RenderTexture**：一张可以被着色器采样的离屏纹理，是最常用的中间目标。可以是颜色纹理，也可以是深度纹理（阴影贴图就是把深度写进这里）。
+- **RenderTexture 数组 / 图集（Atlas）**：把多盏灯的阴影贴图塞进同一张大图的不同区域，减少切换开销，是 SRP 阴影系统的典型做法。
+
+## 如何切换 RenderTarget
+
+在 SRP 里通过 CommandBuffer 设置：
+
+```csharp
+// 申请一张临时 RT（阴影图集），R 通道存深度
+buffer.GetTemporaryRT(
+    shadowAtlasId, atlasSize, atlasSize,
+    32, FilterMode.Bilinear, RenderTextureFormat.Shadowmap);
+
+// 把后续绘制重定向到这张 RT
+buffer.SetRenderTarget(
+    shadowAtlasId,
+    RenderBufferLoadAction.DontCare,   // 不需要保留上一帧内容（性能优化）
+    RenderBufferStoreAction.Store);    // 渲染完要保留，后面采样
+
+buffer.ClearRenderTarget(true, false, Color.clear);
+```
+
+要点：
+- `RenderBufferLoadAction.DontCare` 表示不关心 RT 里的旧数据，省一次读取带宽。
+- `RenderBufferStoreAction.Store` 表示绘制结果要写回内存，供后续 Pass 采样。
+- 用完临时 RT 后记得 `buffer.ReleaseTemporaryRT(shadowAtlasId)` 释放。
+
+

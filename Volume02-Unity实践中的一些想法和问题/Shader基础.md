@@ -8,7 +8,7 @@ Unity默认的Shader模板的Properties中有BaseMap贴图声明
 
 形式如下:
 
-    `[MainTexture]_BaseMap ("Base Map", 2D) = "white" {}`
+    [MainTexture]_BaseMap ("Base Map", 2D) = "white" {}
 
 `[MainTexture]`：Property Attribute (属性标签 / 特性)。 可选参数，用于控制材质面板的 UI 行为或指定特殊逻辑。
 
@@ -72,6 +72,8 @@ float3 detailNormal = UnpackNormalScale(SAMPLE_TEXTURE2D(_DetailNormalMap, sampl
 // 使用 Unity 内置函数进行混合
 i.normal = BlendNormal(mainNormal, detailNormal);
 ```
+# 光照
+
 
 # 阴影
 在 URP（通用渲染管线）中，带有 "LightMode" = "ShadowCaster" 的 Pass 的唯一职责是：把物体的深度信息写入当前光源的阴影贴图（Shadow Map）中。
